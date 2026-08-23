@@ -1,0 +1,638 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<title>Ludo Bash</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<!--
+  Rewarded-ad SDK goes here in production, e.g. Adsgram (built specifically
+  for Telegram Mini Apps): <script src="https://sad.adsgram.ai/js/sad.min.js"></script>
+  See README "Ads" section for the real integration steps.
+-->
+<style>
+  :root{
+    --bg:#12141c;
+    --panel:#1c2030;
+    --panel-2:#242a3d;
+    --gold:#e8b34a;
+    --ink:#edebe5;
+    --ink-dim:#9098b0;
+    --red:#e1523d;
+    --green:#3fa34d;
+    --yellow:#e0c23d;
+    --blue:#3d7de1;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);
+    font-family:'Inter',sans-serif;overflow-x:hidden;}
+  h1,h2,h3,.display{font-family:'Baloo 2',sans-serif;}
+  #app{max-width:520px;margin:0 auto;padding:12px 12px 90px;min-height:100vh;}
+
+  .topbar{display:flex;align-items:center;justify-content:space-between;
+    padding:10px 14px;background:var(--panel);border-radius:16px;margin-bottom:12px;}
+  .brand{display:flex;align-items:center;gap:8px;font-weight:800;font-size:18px;letter-spacing:.3px;}
+  .brand .dot{width:10px;height:10px;border-radius:50%;background:var(--gold);}
+  .coins{display:flex;align-items:center;gap:6px;background:var(--panel-2);
+    padding:6px 12px;border-radius:999px;font-weight:700;color:var(--gold);}
+
+  .screen{display:none;}
+  .screen.active{display:block;}
+
+  .card{background:var(--panel);border-radius:18px;padding:16px;margin-bottom:12px;}
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;
+    background:var(--gold);color:#1a1408;font-weight:700;border:none;border-radius:14px;
+    padding:12px 18px;font-size:15px;cursor:pointer;width:100%;font-family:'Inter',sans-serif;}
+  .btn.secondary{background:var(--panel-2);color:var(--ink);}
+  .btn.small{width:auto;padding:8px 14px;font-size:13px;}
+  .btn:disabled{opacity:.5;}
+
+  .players-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:12px 0;}
+  .player-pick{border:2px solid var(--panel-2);background:var(--panel-2);border-radius:14px;
+    padding:12px;text-align:center;cursor:pointer;font-weight:700;}
+  .player-pick.active{border-color:var(--gold);color:var(--gold);}
+
+  /* Board */
+  #boardWrap{position:relative;width:100%;aspect-ratio:1/1;background:var(--panel);
+    border-radius:20px;overflow:hidden;}
+  #board{width:100%;height:100%;display:block;}
+  .hub{fill:var(--panel-2);}
+  .cell-star{fill:rgba(232,179,74,.35);}
+
+  .turn-banner{display:flex;align-items:center;justify-content:space-between;
+    padding:12px 16px;border-radius:16px;margin:12px 0;font-weight:700;}
+
+  #diceWrap{display:flex;align-items:center;justify-content:center;gap:16px;margin-top:14px;}
+  .dice{width:64px;height:64px;border-radius:16px;background:var(--panel-2);
+    display:flex;align-items:center;justify-content:center;font-size:30px;cursor:pointer;
+    box-shadow:0 4px 0 rgba(0,0,0,.35);user-select:none;}
+  .dice.rolling{animation:tumble .5s ease;}
+  @keyframes tumble{
+    0%{transform:rotate(0deg) scale(1);}
+    30%{transform:rotate(120deg) scale(1.15);}
+    60%{transform:rotate(260deg) scale(.9);}
+    100%{transform:rotate(360deg) scale(1);}
+  }
+  .hint{text-align:center;color:var(--ink-dim);font-size:13px;margin-top:6px;}
+
+  .tabbar{position:fixed;bottom:0;left:0;right:0;background:var(--panel);
+    display:flex;max-width:520px;margin:0 auto;border-top:1px solid var(--panel-2);}
+  .tab{flex:1;text-align:center;padding:12px 0 10px;color:var(--ink-dim);
+    font-weight:600;font-size:12px;cursor:pointer;}
+  .tab.active{color:var(--gold);}
+  .tab .icon{font-size:20px;display:block;}
+
+  .shop-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+  .shop-item{background:var(--panel-2);border-radius:14px;padding:12px;text-align:center;}
+  .shop-item .name{font-weight:700;font-size:13px;margin:6px 0 2px;}
+  .shop-item .price{color:var(--gold);font-weight:700;font-size:13px;margin-bottom:8px;}
+  .swatch{width:44px;height:44px;border-radius:50%;margin:0 auto;}
+
+  .lb-row{display:flex;justify-content:space-between;padding:8px 4px;
+    border-bottom:1px solid var(--panel-2);font-size:14px;}
+  .lb-row:last-child{border-bottom:none;}
+
+  .toast{position:fixed;left:50%;top:16px;transform:translateX(-50%);
+    background:var(--panel-2);color:var(--ink);padding:10px 18px;border-radius:12px;
+    font-weight:600;font-size:13px;opacity:0;pointer-events:none;transition:opacity .25s;z-index:50;}
+  .toast.show{opacity:1;}
+</style>
+</head>
+<body>
+<div id="app">
+
+  <div class="topbar">
+    <div class="brand"><span class="dot"></span>Ludo Bash</div>
+    <div class="coins">🪙 <span id="coinBalance">—</span></div>
+  </div>
+
+  <!-- HOME -->
+  <div class="screen active" id="screen-home">
+    <div class="card">
+      <h2 style="margin:0 0 4px;">Play a match</h2>
+      <p style="color:var(--ink-dim);margin:0 0 10px;font-size:13px;">
+        Pass-and-play on one phone, or each take turns tapping the dice.
+      </p>
+      <div class="players-grid" id="playerCountGrid"></div>
+      <button class="btn" id="startMatchBtn">🎲 Start match</button>
+    </div>
+    <div class="card">
+      <h3 style="margin:0 0 8px;">Earn more coins</h3>
+      <button class="btn secondary" id="dailyBtn" style="margin-bottom:8px;">🎁 Claim daily bonus (+100)</button>
+      <button class="btn secondary" id="adBtn">📺 Watch an ad for +50 coins</button>
+    </div>
+    <div class="card">
+      <h3 style="margin:0 0 8px;">Invite friends</h3>
+      <p style="color:var(--ink-dim);font-size:13px;margin:0 0 10px;">
+        +100 coins for every friend who joins with your link.
+      </p>
+      <button class="btn secondary" id="inviteBtn">👥 Get my invite link</button>
+    </div>
+  </div>
+
+  <!-- GAME -->
+  <div class="screen" id="screen-game">
+    <div class="turn-banner card" id="turnBanner">Waiting…</div>
+    <div id="boardWrap"><svg id="board" viewBox="0 0 500 500"></svg></div>
+    <div id="diceWrap">
+      <div class="dice" id="diceEl">🎲</div>
+    </div>
+    <div class="hint" id="hint">Tap the dice to roll</div>
+    <button class="btn secondary" id="quitBtn" style="margin-top:14px;">Quit match</button>
+  </div>
+
+  <!-- SHOP -->
+  <div class="screen" id="screen-shop">
+    <div class="card">
+      <h2 style="margin:0 0 10px;">Dice skins</h2>
+      <div class="shop-grid" id="shopDice"></div>
+    </div>
+    <div class="card">
+      <h2 style="margin:0 0 10px;">Board themes</h2>
+      <div class="shop-grid" id="shopBoard"></div>
+    </div>
+    <div class="card">
+      <h2 style="margin:0 0 10px;">Token skins</h2>
+      <div class="shop-grid" id="shopToken"></div>
+    </div>
+  </div>
+
+  <!-- LEADERBOARD -->
+  <div class="screen" id="screen-lb">
+    <div class="card">
+      <h2 style="margin:0 0 10px;">🏆 Top players</h2>
+      <div id="lbList"></div>
+    </div>
+  </div>
+
+</div>
+
+<div class="tabbar">
+  <div class="tab active" data-screen="home"><span class="icon">🏠</span>Home</div>
+  <div class="tab" data-screen="shop"><span class="icon">🛍️</span>Shop</div>
+  <div class="tab" data-screen="lb"><span class="icon">🏆</span>Ranks</div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const tg = window.Telegram?.WebApp;
+tg?.ready();
+tg?.expand();
+
+// ---------- config ----------
+const API_BASE = ""; // same-origin: FastAPI serves this file, so relative paths work
+const initData = tg?.initData || "";
+
+// ---------- tiny helpers ----------
+function toast(msg){
+  const t = document.getElementById("toast");
+  t.textContent = msg;
+  t.classList.add("show");
+  setTimeout(()=>t.classList.remove("show"), 1800);
+}
+async function api(path, body){
+  const res = await fetch(API_BASE + path, {
+    method: "POST",
+    headers: {"Content-Type":"application/json"},
+    body: JSON.stringify({initData, ...body})
+  });
+  if(!res.ok){
+    const d = await res.json().catch(()=>({detail:res.statusText}));
+    throw new Error(d.detail || "request failed");
+  }
+  return res.json();
+}
+
+let profile = null; // {coins, owned, active, catalog, referral_count}
+
+async function refreshProfile(){
+  profile = await api("/api/profile", {});
+  document.getElementById("coinBalance").textContent = profile.coins;
+  renderShop();
+}
+
+// ---------- nav ----------
+document.querySelectorAll(".tab").forEach(tab=>{
+  tab.addEventListener("click", ()=>{
+    document.querySelectorAll(".tab").forEach(t=>t.classList.remove("active"));
+    document.querySelectorAll(".screen").forEach(s=>s.classList.remove("active"));
+    tab.classList.add("active");
+    document.getElementById("screen-"+tab.dataset.screen).classList.add("active");
+    if(tab.dataset.screen === "lb") loadLeaderboard();
+  });
+});
+
+// ---------- home actions ----------
+let selectedPlayerCount = 4;
+const grid = document.getElementById("playerCountGrid");
+[2,3,4].forEach(n=>{
+  const el = document.createElement("div");
+  el.className = "player-pick" + (n===4 ? " active" : "");
+  el.textContent = n + " players";
+  el.onclick = ()=>{
+    selectedPlayerCount = n;
+    document.querySelectorAll(".player-pick").forEach(p=>p.classList.remove("active"));
+    el.classList.add("active");
+  };
+  grid.appendChild(el);
+});
+
+document.getElementById("startMatchBtn").onclick = ()=>{
+  document.querySelectorAll(".tab").forEach(t=>t.classList.remove("active"));
+  document.querySelectorAll(".screen").forEach(s=>s.classList.remove("active"));
+  document.getElementById("screen-game").classList.add("active");
+  startGame(selectedPlayerCount);
+};
+
+document.getElementById("dailyBtn").onclick = async ()=>{
+  try{
+    profile = await api("/api/daily", {});
+    document.getElementById("coinBalance").textContent = profile.coins;
+    toast("+100 coins claimed!");
+  }catch(e){ toast(e.message); }
+};
+
+document.getElementById("adBtn").onclick = async ()=>{
+  // Production: trigger real rewarded ad here, e.g. Adsgram:
+  //   Adsgram.init({blockId: "YOUR_BLOCK_ID"}).show().then(onAdReward).catch(onAdSkippedOrFailed);
+  // For this MVP we simulate the "ad watched" callback after a short delay.
+  toast("Loading ad…");
+  await new Promise(r=>setTimeout(r, 1200));
+  try{
+    profile = await api("/api/ad-reward", {});
+    document.getElementById("coinBalance").textContent = profile.coins;
+    toast("+50 coins for watching!");
+  }catch(e){ toast(e.message); }
+};
+
+document.getElementById("inviteBtn").onclick = ()=>{
+  tg?.openTelegramLink?.(`https://t.me/share/url?url=${encodeURIComponent("Play free Ludo with me!")}`);
+  toast("Use /invite in the chat with the bot for your personal link");
+};
+
+document.getElementById("quitBtn").onclick = ()=>{
+  document.querySelectorAll(".tab")[0].click();
+};
+
+// ================= SHOP =================
+function renderShopGroup(containerId, slot){
+  const el = document.getElementById(containerId);
+  el.innerHTML = "";
+  profile.catalog[slot].forEach(item=>{
+    const owned = item.price === 0 || profile.owned.includes(item.id);
+    const equipped = profile.active[slot] === item.id;
+    const div = document.createElement("div");
+    div.className = "shop-item";
+    div.innerHTML = `
+      <div class="swatch" style="background:${swatchColor(slot,item.id)}"></div>
+      <div class="name">${item.name}</div>
+      <div class="price">${item.price === 0 ? "Free" : "🪙 "+item.price}</div>
+      <button class="btn small ${equipped ? "" : "secondary"}">${equipped ? "Equipped" : (owned ? "Equip" : "Buy")}</button>
+    `;
+    div.querySelector("button").onclick = async ()=>{
+      try{
+        if(owned){
+          profile = await api("/api/shop/equip", {slot, cosmetic_id:item.id});
+          toast(item.name + " equipped");
+        } else {
+          profile = await api("/api/shop/buy", {slot, cosmetic_id:item.id});
+          profile = await api("/api/shop/equip", {slot, cosmetic_id:item.id});
+          toast(item.name + " purchased!");
+        }
+        document.getElementById("coinBalance").textContent = profile.coins;
+        renderShop();
+      }catch(e){ toast(e.message); }
+    };
+    el.appendChild(div);
+  });
+}
+function swatchColor(slot, id){
+  const map = {gold:"#e8b34a", neon:"#3fd1e8", wood:"#8a5a2b", midnight:"#20264a",
+    festival:"#e1523d", marble:"#cfcfe0", gems:"#3fa34d", animals:"#e0c23d",
+    robots:"#9098b0", classic:"#5a6280"};
+  return map[id] || "#5a6280";
+}
+function renderShop(){
+  if(!profile) return;
+  renderShopGroup("shopDice","dice_skin");
+  renderShopGroup("shopBoard","board_theme");
+  renderShopGroup("shopToken","token_skin");
+}
+
+// ================= LEADERBOARD =================
+async function loadLeaderboard(){
+  const res = await fetch(API_BASE + "/api/leaderboard");
+  const rows = await res.json();
+  const el = document.getElementById("lbList");
+  el.innerHTML = rows.map((r,i)=>`
+    <div class="lb-row"><span>${i+1}. ${r.username ? "@"+r.username : "Player "+r.user_id}</span><span>🪙 ${r.coins}</span></div>
+  `).join("") || "<p style='color:var(--ink-dim)'>No players yet.</p>";
+}
+
+// ================= LUDO ENGINE =================
+const COLORS = ["red","green","yellow","blue"];
+const COLOR_HEX = {red:"#e1523d", green:"#3fa34d", yellow:"#e0c23d", blue:"#3d7de1"};
+const TRACK_LEN = 52;
+const STEPS_PER_LANE = 6; // home-stretch cells per color
+const FINISH = 51 + STEPS_PER_LANE; // progress value = finished (57)
+
+let game = null; // {players:[{color,tokens:[{progress}]}], current, dice, mustMove, points, homePoints}
+
+function buildTrackPoints(){
+  // Evenly spaced points around a rounded-square perimeter, 52 total.
+  const pts = [];
+  const size = 460, margin = 20, r = 60; // rounded corner radius
+  const cx = 250, cy = 250;
+  const half = size/2;
+  // perimeter path made of 4 straight segments + 4 corner arcs, sampled uniformly
+  const straight = size - 2*r;
+  const arcLen = (Math.PI/2) * r;
+  const perim = 4*straight + 4*arcLen;
+  const step = perim / TRACK_LEN;
+  let d = 0;
+  for(let i=0;i<TRACK_LEN;i++, d+=step){
+    pts.push(pointAtPerimeter(d % perim, cx, cy, half, r, straight, arcLen));
+  }
+  return pts;
+}
+function pointAtPerimeter(d, cx, cy, half, r, straight, arcLen){
+  // Walk: top edge, top-right corner, right edge, bottom-right corner,
+  // bottom edge, bottom-left corner, left edge, top-left corner.
+  const segs = [straight, arcLen, straight, arcLen, straight, arcLen, straight, arcLen];
+  let idx = 0, acc = 0;
+  while(d > segs[idx]){ d -= segs[idx]; idx++; if(idx>7) {idx=7; break;} }
+  const top = cy - half + r, bottom = cy + half - r, left = cx - half + r, right = cx + half - r;
+  switch(idx){
+    case 0: return {x:left + d, y:cy-half};                  // top edge, left->right
+    case 1: return arcPoint(right, cy-half+r, r, -90, d/arcLen*90);   // top-right corner
+    case 2: return {x:cx+half, y:top + d};                    // right edge, top->bottom
+    case 3: return arcPoint(right, bottom, r, 0, d/arcLen*90);        // bottom-right corner
+    case 4: return {x:right - d, y:cy+half};                  // bottom edge, right->left
+    case 5: return arcPoint(left, bottom, r, 90, d/arcLen*90);        // bottom-left corner
+    case 6: return {x:cx-half, y:bottom - d};                 // left edge, bottom->top
+    default: return arcPoint(left, top, r, 180, d/arcLen*90);         // top-left corner
+  }
+}
+function arcPoint(cx,cy,r,startDeg,sweepDeg){
+  const a = (startDeg+sweepDeg) * Math.PI/180;
+  return {x: cx + r*Math.cos(a), y: cy + r*Math.sin(a)};
+}
+
+const TRACK_POINTS = buildTrackPoints();
+const STARTS = {red:0, green:13, yellow:26, blue:39};
+const SAFE_OFFSETS = [0, 8]; // safe relative to each color's own start
+const SAFE_INDICES = new Set();
+Object.values(STARTS).forEach(s=> SAFE_OFFSETS.forEach(o=> SAFE_INDICES.add((s+o)%TRACK_LEN)));
+
+function homeLanePoints(color){
+  const start = STARTS[color];
+  const turnoff = (start - 1 + TRACK_LEN) % TRACK_LEN;
+  const p0 = TRACK_POINTS[turnoff];
+  const cx=250, cy=250;
+  const pts = [];
+  for(let i=1;i<=STEPS_PER_LANE;i++){
+    const f = i/(STEPS_PER_LANE+1);
+    pts.push({x: p0.x + (cx-p0.x)*f, y: p0.y + (cy-p0.y)*f});
+  }
+  return pts;
+}
+const HOME_LANES = {};
+COLORS.forEach(c=> HOME_LANES[c] = homeLanePoints(c));
+
+function yardPoints(color, count){
+  const start = TRACK_POINTS[STARTS[color]];
+  const cx=250, cy=250;
+  const dx = start.x - cx, dy = start.y - cy;
+  const len = Math.hypot(dx,dy);
+  const ox = dx/len, oy = dy/len; // outward direction
+  const base = {x: start.x + ox*46, y: start.y + oy*46};
+  const perpX = -oy, perpY = ox;
+  const pts = [];
+  const offsets = [[-16,-16],[16,-16],[-16,16],[16,16]];
+  for(let i=0;i<count;i++){
+    const [a,b] = offsets[i];
+    pts.push({x: base.x + perpX*a + ox*b, y: base.y + perpY*a + oy*b});
+  }
+  return pts;
+}
+
+function globalIndexFor(color, progress){
+  // progress 1..51 -> shared track index
+  return (STARTS[color] + progress - 1) % TRACK_LEN;
+}
+
+function pointFor(color, progress){
+  if(progress === 0) return null; // caller uses yard slot
+  if(progress >= 1 && progress <= 51) return TRACK_POINTS[globalIndexFor(color, progress)];
+  if(progress >= 52 && progress <= 57) return HOME_LANES[color][progress-52];
+  return null;
+}
+
+function startGame(playerCount){
+  const active = COLORS.slice(0, playerCount);
+  game = {
+    players: active.map(c => ({color:c, tokens:[0,0,0,0], finished:0})),
+    current: 0,
+    dice: null,
+    rolling: false,
+    sixStreak: 0,
+  };
+  renderBoard();
+  updateTurnBanner("Tap the dice to roll");
+  document.getElementById("hint").textContent = "Tap the dice to roll";
+}
+
+function renderBoard(){
+  const svg = document.getElementById("board");
+  svg.innerHTML = "";
+  const ns = "http://www.w3.org/2000/svg";
+
+  // track cells
+  TRACK_POINTS.forEach((p, i)=>{
+    const c = document.createElementNS(ns,"circle");
+    c.setAttribute("cx", p.x); c.setAttribute("cy", p.y); c.setAttribute("r", 10);
+    c.setAttribute("class", SAFE_INDICES.has(i) ? "cell-star" : "");
+    c.setAttribute("fill", SAFE_INDICES.has(i) ? "rgba(232,179,74,.35)" : "#2a3049");
+    svg.appendChild(c);
+  });
+  // color the 4 start cells
+  Object.entries(STARTS).forEach(([color, idx])=>{
+    const p = TRACK_POINTS[idx];
+    const c = document.createElementNS(ns,"circle");
+    c.setAttribute("cx",p.x); c.setAttribute("cy",p.y); c.setAttribute("r",12);
+    c.setAttribute("fill", COLOR_HEX[color]); c.setAttribute("opacity","0.9");
+    svg.appendChild(c);
+  });
+  // home lanes
+  COLORS.forEach(color=>{
+    HOME_LANES[color].forEach(p=>{
+      const c = document.createElementNS(ns,"circle");
+      c.setAttribute("cx",p.x); c.setAttribute("cy",p.y); c.setAttribute("r",9);
+      c.setAttribute("fill", COLOR_HEX[color]); c.setAttribute("opacity","0.35");
+      svg.appendChild(c);
+    });
+  });
+  // center hub
+  const hub = document.createElementNS(ns,"circle");
+  hub.setAttribute("cx",250); hub.setAttribute("cy",250); hub.setAttribute("r",34);
+  hub.setAttribute("class","hub");
+  svg.appendChild(hub);
+  const label = document.createElementNS(ns,"text");
+  label.setAttribute("x",250); label.setAttribute("y",255); label.setAttribute("text-anchor","middle");
+  label.setAttribute("font-size","20"); label.textContent = "🏁";
+  svg.appendChild(label);
+
+  // yards + tokens
+  game.players.forEach(pl=>{
+    const yPts = yardPoints(pl.color, 4);
+    pl.tokens.forEach((prog, ti)=>{
+      const p = prog === 0 ? yPts[ti] : pointFor(pl.color, prog);
+      if(!p) return; // finished tokens hide (progress 58 handled separately)
+      const g = document.createElementNS(ns,"circle");
+      g.setAttribute("cx",p.x); g.setAttribute("cy",p.y); g.setAttribute("r", prog===0?9:11);
+      g.setAttribute("fill", COLOR_HEX[pl.color]);
+      g.setAttribute("stroke", "#12141c"); g.setAttribute("stroke-width","2");
+      g.dataset.player = game.players.indexOf(pl);
+      g.dataset.token = ti;
+      g.style.cursor = "pointer";
+      g.addEventListener("click", onTokenClick);
+      svg.appendChild(g);
+    });
+  });
+}
+
+function updateTurnBanner(msg){
+  const pl = game.players[game.current];
+  const banner = document.getElementById("turnBanner");
+  banner.style.background = COLOR_HEX[pl.color] + "33";
+  banner.style.color = COLOR_HEX[pl.color];
+  banner.innerHTML = `<span>${pl.color.toUpperCase()}'s turn</span><span>${msg}</span>`;
+}
+
+document.getElementById("diceEl").addEventListener("click", rollDice);
+
+function rollDice(){
+  if(game.rolling || game.awaitingTokenChoice) return;
+  game.rolling = true;
+  const diceEl = document.getElementById("diceEl");
+  diceEl.classList.add("rolling");
+  const roll = 1 + Math.floor(Math.random()*6);
+  setTimeout(()=>{
+    diceEl.classList.remove("rolling");
+    diceEl.textContent = ["⚀","⚁","⚂","⚃","⚄","⚅"][roll-1];
+    game.rolling = false;
+    handleRoll(roll);
+  }, 500);
+}
+
+function movableTokens(roll){
+  const pl = game.players[game.current];
+  const movable = [];
+  pl.tokens.forEach((prog, i)=>{
+    if(prog === 0){ if(roll===6) movable.push(i); return; }
+    if(prog === FINISH) return; // already home
+    if(prog + roll <= FINISH) movable.push(i);
+  });
+  return movable;
+}
+
+function handleRoll(roll){
+  const options = movableTokens(roll);
+  if(options.length === 0){
+    document.getElementById("hint").textContent = `Rolled ${roll} — no valid move`;
+    setTimeout(nextTurn, 700);
+    return;
+  }
+  if(options.length === 1){
+    moveToken(game.current, options[0], roll);
+    return;
+  }
+  game.awaitingTokenChoice = {roll, options};
+  document.getElementById("hint").textContent = `Rolled ${roll} — tap a token to move`;
+}
+
+function onTokenClick(e){
+  if(!game.awaitingTokenChoice) return;
+  const pIdx = parseInt(e.target.dataset.player);
+  const tIdx = parseInt(e.target.dataset.token);
+  if(pIdx !== game.current) return;
+  if(!game.awaitingTokenChoice.options.includes(tIdx)) return;
+  const roll = game.awaitingTokenChoice.roll;
+  game.awaitingTokenChoice = null;
+  moveToken(pIdx, tIdx, roll);
+}
+
+function moveToken(pIdx, tIdx, roll){
+  const pl = game.players[pIdx];
+  const wasYard = pl.tokens[tIdx] === 0;
+  pl.tokens[tIdx] = wasYard ? 1 : pl.tokens[tIdx] + roll;
+  const newProg = pl.tokens[tIdx];
+
+  let captured = false;
+  if(newProg >= 1 && newProg <= 51){
+    const gIdx = globalIndexFor(pl.color, newProg);
+    if(!SAFE_INDICES.has(gIdx)){
+      game.players.forEach((other, oi)=>{
+        if(oi === pIdx) return;
+        other.tokens.forEach((oprog, oti)=>{
+          if(oprog >=1 && oprog <=51 && globalIndexFor(other.color, oprog) === gIdx){
+            other.tokens[oti] = 0;
+            captured = true;
+          }
+        });
+      });
+    }
+  }
+
+  if(newProg === FINISH) pl.finished++;
+  renderBoard();
+
+  if(pl.finished === 4){
+    endGame(pIdx);
+    return;
+  }
+
+  let hint = captured ? "Captured! " : "";
+  if(roll === 6){
+    game.sixStreak++;
+    if(game.sixStreak >= 3){
+      game.sixStreak = 0;
+      nextTurn();
+      return;
+    }
+    document.getElementById("hint").textContent = hint + "Rolled a 6 — go again!";
+    return;
+  }
+  game.sixStreak = 0;
+  setTimeout(nextTurn, 600);
+}
+
+function nextTurn(){
+  game.current = (game.current + 1) % game.players.length;
+  game.sixStreak = 0;
+  updateTurnBanner("Tap the dice to roll");
+  document.getElementById("hint").textContent = "Tap the dice to roll";
+}
+
+async function endGame(winnerIdx){
+  const winnerColor = game.players[winnerIdx].color;
+  document.getElementById("hint").textContent = `🎉 ${winnerColor.toUpperCase()} wins!`;
+  try{
+    const result = winnerIdx === 0 ? "win" : "lose"; // reward the local device's player slot
+    profile = await api("/api/game-result", {result});
+    document.getElementById("coinBalance").textContent = profile.coins;
+    toast(result === "win" ? "+50 coins for the win!" : "+10 coins for playing");
+  }catch(e){ /* non-fatal */ }
+}
+
+// ---------- boot ----------
+refreshProfile().catch(()=>{
+  document.getElementById("coinBalance").textContent = "500";
+  toast("Running outside Telegram — showing demo balance");
+});
+</script>
+</body>
+</html>
