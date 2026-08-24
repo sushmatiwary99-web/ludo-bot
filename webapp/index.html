@@ -20,10 +20,10 @@
     --gold:#e8b34a;
     --ink:#edebe5;
     --ink-dim:#9098b0;
-    --red:#e1523d;
-    --green:#3fa34d;
-    --yellow:#e0c23d;
-    --blue:#3d7de1;
+    --red:#d7372f;
+    --green:#469c4e;
+    --yellow:#f4c93a;
+    --blue:#4a8fe0;
   }
   *{box-sizing:border-box;}
   html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);
@@ -61,27 +61,28 @@
     background:#fff;transition:left .15s;}
   .switch.on .knob{left:21px;}
 
-  /* Game board area, Ludo-King style: 4 corner player boxes + center board */
-  #gameGrid{display:grid;grid-template-columns:64px 1fr 64px;grid-template-rows:64px 1fr 64px;
-    gap:6px;width:100%;}
+  /* Game layout: 4 corner player panels (avatar+big dice) around the board */
+  #gameGrid{display:grid;grid-template-columns:70px 1fr 70px;grid-template-rows:auto 1fr auto;
+    gap:8px;width:100%;align-items:center;}
   .pbox{border-radius:14px;display:flex;flex-direction:column;align-items:center;justify-content:center;
-    gap:2px;background:var(--panel-2);opacity:.45;position:relative;transition:opacity .2s, transform .15s;}
+    gap:4px;background:var(--panel-2);opacity:.4;padding:8px 4px;transition:opacity .2s, transform .15s;}
   .pbox.active{opacity:1;box-shadow:0 0 0 3px var(--gold);}
   .pbox.active.tappable{cursor:pointer;}
-  .pbox.active.tappable:active{transform:scale(.94);}
-  .pbox .avatar{width:24px;height:24px;border-radius:50%;border:2px solid #fff2;}
-  .pbox .mini-dice{font-size:18px;}
-  .pbox.gone{visibility:hidden;}
+  .pbox.active.tappable:active{transform:scale(.92);}
+  .pbox .avatar{width:26px;height:26px;border-radius:50%;border:2px solid #fff3;}
+  .pbox .big-dice{width:44px;height:44px;border-radius:10px;background:#fff;color:#222;
+    display:flex;align-items:center;justify-content:center;font-size:26px;font-weight:800;
+    box-shadow:0 3px 0 rgba(0,0,0,.3);}
   #boxTL{grid-column:1;grid-row:1;}
   #boxTR{grid-column:3;grid-row:1;}
   #boxBL{grid-column:1;grid-row:3;}
   #boxBR{grid-column:3;grid-row:3;}
-  #boardWrap{grid-column:2;grid-row:2;position:relative;width:100%;aspect-ratio:1/1;
-    background:#eef0f6;border-radius:16px;overflow:hidden;box-shadow:0 6px 0 rgba(0,0,0,.35);}
+  #boardWrap{grid-column:2;grid-row:1/span 3;position:relative;width:100%;aspect-ratio:1/1;
+    background:#fff;border-radius:14px;overflow:hidden;box-shadow:0 6px 0 rgba(0,0,0,.35);}
   #board{width:100%;height:100%;display:block;}
 
   .turn-banner{display:flex;align-items:center;justify-content:space-between;
-    padding:10px 16px;border-radius:14px;margin:10px 0;font-weight:700;font-size:14px;}
+    padding:10px 16px;border-radius:14px;margin:0 0 10px;font-weight:700;font-size:14px;}
   .hint{text-align:center;color:var(--ink-dim);font-size:13px;margin-top:8px;min-height:18px;}
 
   .tabbar{position:fixed;bottom:0;left:0;right:0;background:var(--panel);
@@ -157,7 +158,7 @@
     <div id="gameGrid">
       <div class="pbox" id="boxTL"></div>
       <div class="pbox" id="boxTR"></div>
-      <div id="boardWrap"><svg id="board" viewBox="0 0 500 500"></svg></div>
+      <div id="boardWrap"><svg id="board" viewBox="0 0 450 450"></svg></div>
       <div class="pbox" id="boxBL"></div>
       <div class="pbox" id="boxBR"></div>
     </div>
@@ -210,11 +211,10 @@ const tg = window.Telegram?.WebApp;
 tg?.ready();
 tg?.expand();
 
-// ---------- config ----------
-const API_BASE = ""; // same-origin: FastAPI serves this file, so relative paths work
+const API_BASE = "";
 const initData = tg?.initData || "";
 
-// ---------- sound engine (synthesized, no external files needed) ----------
+// ---------- sound engine (synthesized, no external files) ----------
 let soundOn = true;
 let audioCtx = null;
 function ensureAudio(){
@@ -241,13 +241,9 @@ function playTone(freq, duration, type="sine", startDelay=0, gain=0.15){
   osc.stop(t0 + duration + 0.02);
 }
 function sfxDiceRoll(){
-  for(let i=0;i<5;i++){
-    playTone(200 + Math.random()*300, 0.05, "square", i*0.08, 0.08);
-  }
+  for(let i=0;i<5;i++) playTone(200 + Math.random()*300, 0.05, "square", i*0.08, 0.08);
 }
-function sfxStep(){
-  playTone(520, 0.09, "triangle", 0, 0.12);
-}
+function sfxStep(){ playTone(520, 0.09, "triangle", 0, 0.12); }
 function sfxCapture(){
   playTone(300, 0.15, "sawtooth", 0, 0.15);
   playTone(160, 0.2, "sawtooth", 0.1, 0.12);
@@ -259,13 +255,12 @@ function sfxSix(){
 function sfxWin(){
   [523,659,784,1047].forEach((f,i)=>playTone(f, 0.25, "sine", i*0.15, 0.16));
 }
-
 document.getElementById("soundSwitch").addEventListener("click", (e)=>{
   soundOn = !soundOn;
   e.currentTarget.classList.toggle("on", soundOn);
 });
 
-// ---------- tiny helpers ----------
+// ---------- helpers ----------
 function toast(msg){
   const t = document.getElementById("toast");
   t.textContent = msg;
@@ -284,9 +279,7 @@ async function api(path, body){
   }
   return res.json();
 }
-
 let profile = null;
-
 async function refreshProfile(){
   profile = await api("/api/profile", {});
   document.getElementById("coinBalance").textContent = profile.coins;
@@ -304,7 +297,6 @@ document.querySelectorAll(".tab").forEach(tab=>{
   });
 });
 
-// ---------- home actions ----------
 let selectedPlayerCount = 4;
 const grid = document.getElementById("playerCountGrid");
 [2,3,4].forEach(n=>{
@@ -325,7 +317,6 @@ document.getElementById("startMatchBtn").onclick = ()=>{
   document.getElementById("screen-game").classList.add("active");
   startGame(selectedPlayerCount);
 };
-
 document.getElementById("dailyBtn").onclick = async ()=>{
   try{
     profile = await api("/api/daily", {});
@@ -333,7 +324,6 @@ document.getElementById("dailyBtn").onclick = async ()=>{
     toast("+100 coins claimed!");
   }catch(e){ toast(e.message); }
 };
-
 document.getElementById("adBtn").onclick = async ()=>{
   toast("Loading ad…");
   await new Promise(r=>setTimeout(r, 1200));
@@ -343,15 +333,11 @@ document.getElementById("adBtn").onclick = async ()=>{
     toast("+50 coins for watching!");
   }catch(e){ toast(e.message); }
 };
-
 document.getElementById("inviteBtn").onclick = ()=>{
   tg?.openTelegramLink?.(`https://t.me/share/url?url=${encodeURIComponent("Play free Ludo with me!")}`);
   toast("Use /invite in the chat with the bot for your personal link");
 };
-
-document.getElementById("quitBtn").onclick = ()=>{
-  document.querySelectorAll(".tab")[0].click();
-};
+document.getElementById("quitBtn").onclick = ()=>{ document.querySelectorAll(".tab")[0].click(); };
 document.getElementById("winCloseBtn").onclick = ()=>{
   document.getElementById("winOverlay").classList.remove("show");
   document.querySelectorAll(".tab")[0].click();
@@ -412,113 +398,63 @@ async function loadLeaderboard(){
   `).join("") || "<p style='color:var(--ink-dim)'>No players yet.</p>";
 }
 
-// ================= LUDO ENGINE =================
+// ================= LUDO ENGINE — verified 15x15 classic grid =================
 const COLORS = ["red","green","yellow","blue"];
-const COLOR_HEX = {red:"#e1523d", green:"#3fa34d", yellow:"#e0c23d", blue:"#3d7de1"};
+const COLOR_HEX = {red:"#d7372f", green:"#469c4e", yellow:"#f4c93a", blue:"#4a8fe0"};
+const CELL = 30; // 450 / 15
 const TRACK_LEN = 52;
-const STEPS_PER_LANE = 6;
-const FINISH = 51 + STEPS_PER_LANE;
+const STEPS_PER_LANE = 5;
+const FINISH = 51 + STEPS_PER_LANE; // 56
+
+// The 52-cell shared ring, verified: fully connected (incl. wraparound),
+// all 52 cells distinct, none inside a yard. [row, col] 0-indexed.
+const RING = [[6,1],[6,2],[6,3],[6,4],[6,5],[6,6],[5,6],[4,6],[3,6],[2,6],[1,6],[0,6],[0,7],
+  [0,8],[1,8],[2,8],[3,8],[4,8],[5,8],[6,8],[6,9],[6,10],[6,11],[6,12],[6,13],[6,14],
+  [7,14],[7,13],[7,12],[7,11],[7,10],[7,9],[8,9],[8,8],[9,8],[10,8],[11,8],[12,8],[13,8],
+  [13,7],[12,7],[11,7],[10,7],[9,7],[8,7],[8,6],[8,5],[8,4],[8,3],[8,2],[8,1],[7,1]];
+
+const STARTS = {red:0, green:13, yellow:26, blue:39};
+
+// 5-cell private home stretches, verified collision-free with RING and yards.
+const HOME = {
+  red:    [[7,2],[7,3],[7,4],[7,5],[7,6]],
+  green:  [[1,7],[2,7],[3,7],[4,7],[5,7]],
+  yellow: [[8,14],[8,13],[8,12],[8,11],[8,10]],
+  blue:   [[13,6],[12,6],[11,6],[10,6],[9,6]],
+};
 
 const YARD = {
-  red:    {x0:0,   y0:0,   x1:180, y1:180},
-  green:  {x0:320, y0:0,   x1:500, y1:180},
-  yellow: {x0:320, y0:320, x1:500, y1:500},
-  blue:   {x0:0,   y0:320, x1:180, y1:500},
+  red:    {r0:0, c0:0, r1:5, c1:5},
+  green:  {r0:0, c0:9, r1:5, c1:14},
+  yellow: {r0:9, c0:9, r1:14,c1:14},
+  blue:   {r0:9, c0:0, r1:14,c1:5},
 };
-const CENTER = {x:250, y:250};
 
-function polyPerimeter(pts){
-  let total = 0; const segs = [];
-  for(let i=0;i<pts.length;i++){
-    const a = pts[i], b = pts[(i+1)%pts.length];
-    const d = Math.hypot(b.x-a.x, b.y-a.y);
-    segs.push(d); total += d;
-  }
-  return {total, segs};
-}
-function pointAtDistance(pts, segs, total, d){
-  d = ((d % total) + total) % total;
-  let acc = 0;
-  for(let i=0;i<pts.length;i++){
-    if(d <= acc+segs[i]){
-      const a = pts[i], b = pts[(i+1)%pts.length];
-      const f = segs[i] === 0 ? 0 : (d-acc)/segs[i];
-      return {x: a.x+(b.x-a.x)*f, y: a.y+(b.y-a.y)*f};
-    }
-    acc += segs[i];
-  }
-  return pts[0];
-}
-function buildTrackPoints(){
-  const A=180, B=320;
-  const verts = [
-    {x:A,y:0},{x:B,y:0},{x:B,y:A},{x:500,y:A},{x:500,y:B},{x:B,y:B},
-    {x:B,y:500},{x:A,y:500},{x:A,y:B},{x:0,y:B},{x:0,y:A},{x:A,y:A}
-  ];
-  const {total, segs} = polyPerimeter(verts);
-  const pts = [];
-  for(let i=0;i<TRACK_LEN;i++){
-    pts.push(pointAtDistance(verts, segs, total, (total/TRACK_LEN)*i));
-  }
-  return pts;
-}
-const TRACK_POINTS = buildTrackPoints();
-
-const CANDIDATE_STARTS = [0, 13, 26, 39];
-function yardCenter(color){
-  const y = YARD[color];
-  return {x:(y.x0+y.x1)/2, y:(y.y0+y.y1)/2};
-}
-const STARTS = {};
-COLORS.forEach(color=>{
-  const yc = yardCenter(color);
-  let best = CANDIDATE_STARTS[0], bestDist = Infinity;
-  CANDIDATE_STARTS.forEach(idx=>{
-    const p = TRACK_POINTS[idx];
-    const d = Math.hypot(p.x-yc.x, p.y-yc.y);
-    if(d < bestDist){ bestDist = d; best = idx; }
-  });
-  STARTS[color] = best;
-});
+function px(r,c){ return {x: c*CELL + CELL/2, y: r*CELL + CELL/2}; }
 
 const SAFE_OFFSETS = [0, 8];
 const SAFE_INDICES = new Set();
 Object.values(STARTS).forEach(s=> SAFE_OFFSETS.forEach(o=> SAFE_INDICES.add((s+o)%TRACK_LEN)));
 
-function homeLanePoints(color){
-  const start = STARTS[color];
-  const turnoff = (start - 1 + TRACK_LEN) % TRACK_LEN;
-  const p0 = TRACK_POINTS[turnoff];
-  const pts = [];
-  for(let i=1;i<=STEPS_PER_LANE;i++){
-    const f = i/(STEPS_PER_LANE+1);
-    pts.push({x: p0.x + (CENTER.x-p0.x)*f, y: p0.y + (CENTER.y-p0.y)*f});
-  }
-  return pts;
-}
-const HOME_LANES = {};
-COLORS.forEach(c=> HOME_LANES[c] = homeLanePoints(c));
-
-function yardSlotPoints(color){
-  const y = YARD[color];
-  const pad = 44;
-  const cx0 = y.x0+pad, cx1 = y.x1-pad, cy0 = y.y0+pad, cy1 = y.y1-pad;
-  return [
-    {x:cx0,y:cy0},{x:cx1,y:cy0},{x:cx0,y:cy1},{x:cx1,y:cy1}
-  ];
-}
-const YARD_SLOTS = {};
-COLORS.forEach(c=> YARD_SLOTS[c] = yardSlotPoints(c));
-
 function globalIndexFor(color, progress){
   return (STARTS[color] + progress - 1) % TRACK_LEN;
 }
-function pointFor(color, progress){
+function cellFor(color, progress){
   if(progress === 0) return null;
-  if(progress >= 1 && progress <= 51) return TRACK_POINTS[globalIndexFor(color, progress)];
-  if(progress >= 52 && progress <= 57) return HOME_LANES[color][progress-52];
+  if(progress >= 1 && progress <= 51) return RING[globalIndexFor(color, progress)];
+  if(progress >= 52 && progress <= 56) return HOME[color][progress-52];
   return null;
 }
+function yardSlotCells(color){
+  const y = YARD[color];
+  const midR = (y.r0+y.r1)/2, midC = (y.c0+y.c1)/2;
+  return [
+    [midR-1.3, midC-1.3], [midR-1.3, midC+1.3],
+    [midR+1.3, midC-1.3], [midR+1.3, midC+1.3],
+  ];
+}
+const YARD_SLOTS = {};
+COLORS.forEach(c=> YARD_SLOTS[c] = yardSlotCells(c));
 
 let game = null;
 
@@ -542,17 +478,18 @@ const CORNER_FOR_COLOR = {red:"boxTL", green:"boxTR", blue:"boxBL", yellow:"boxB
 function renderCornerBoxes(){
   ["boxTL","boxTR","boxBL","boxBR"].forEach(id=>{
     const el = document.getElementById(id);
-    el.className = "pbox gone";
+    el.className = "pbox";
+    el.style.visibility = "hidden";
     el.innerHTML = "";
   });
   game.players.forEach((pl)=>{
     const boxId = CORNER_FOR_COLOR[pl.color];
     const el = document.getElementById(boxId);
-    el.className = "pbox";
+    el.style.visibility = "visible";
     el.style.background = COLOR_HEX[pl.color] + "22";
     el.innerHTML = `
       <div class="avatar" style="background:${COLOR_HEX[pl.color]}"></div>
-      <div class="mini-dice" id="dice-${pl.color}">🎲</div>
+      <div class="big-dice" id="dice-${pl.color}">🎲</div>
     `;
     el.addEventListener("click", ()=>{
       if(game.players[game.current].color === pl.color) rollDice();
@@ -579,49 +516,75 @@ function renderBoard(){
     return e;
   }
 
+  // base grid
+  svg.appendChild(el("rect", {x:0,y:0,width:450,height:450,fill:"#ffffff"}));
+
+  // yards (colored square with white inner panel)
   Object.entries(YARD).forEach(([color, y])=>{
-    svg.appendChild(el("rect", {x:y.x0,y:y.y0,width:y.x1-y.x0,height:y.y1-y.y0,
-      fill:COLOR_HEX[color], opacity:0.18, rx:14}));
-    svg.appendChild(el("rect", {x:y.x0+30,y:y.y0+30,width:(y.x1-y.x0)-60,height:(y.y1-y.y0)-60,
-      fill:"#ffffff", opacity:0.9, rx:16}));
+    const x = y.c0*CELL, yy = y.r0*CELL, w = (y.c1-y.c0+1)*CELL, h=(y.r1-y.r0+1)*CELL;
+    svg.appendChild(el("rect", {x, y:yy, width:w, height:h, fill:COLOR_HEX[color]}));
+    svg.appendChild(el("rect", {x:x+14, y:yy+14, width:w-28, height:h-28, fill:"#ffffff", rx:10}));
   });
 
-  svg.appendChild(el("rect", {x:180,y:0,width:140,height:500,fill:"#ffffff"}));
-  svg.appendChild(el("rect", {x:0,y:180,width:500,height:140,fill:"#ffffff"}));
+  // grid cells for the cross (track band)
+  for(let r=0;r<15;r++){
+    for(let c=0;c<15;c++){
+      const inYard = Object.values(YARD).some(y=> r>=y.r0&&r<=y.r1&&c>=y.c0&&c<=y.c1);
+      if(inYard) continue;
+      svg.appendChild(el("rect", {x:c*CELL,y:r*CELL,width:CELL,height:CELL,
+        fill:"#ffffff", stroke:"#d8dbe6", "stroke-width":1}));
+    }
+  }
 
+  // home stretch colored cells
   COLORS.forEach(color=>{
-    const start = TRACK_POINTS[(STARTS[color]-1+TRACK_LEN)%TRACK_LEN];
-    const pathPts = [start, ...HOME_LANES[color], CENTER];
-    const d = "M " + pathPts.map(p=>`${p.x},${p.y}`).join(" L ");
-    svg.appendChild(el("path", {d, stroke:COLOR_HEX[color], "stroke-width":34,
-      fill:"none", opacity:0.55, "stroke-linecap":"round"}));
+    HOME[color].forEach(([r,c])=>{
+      svg.appendChild(el("rect", {x:c*CELL,y:r*CELL,width:CELL,height:CELL, fill:COLOR_HEX[color]}));
+    });
   });
 
-  TRACK_POINTS.forEach((p, i)=>{
-    const isSafe = SAFE_INDICES.has(i);
-    const startColor = Object.entries(STARTS).find(([c,idx])=>idx===i)?.[0];
-    svg.appendChild(el("circle", {cx:p.x, cy:p.y, r:13,
-      fill: startColor ? COLOR_HEX[startColor] : "#dfe3ee",
-      stroke:"#b9bfd4", "stroke-width":1}));
-    if(isSafe && !startColor){
-      const t = el("text", {x:p.x, y:p.y+5, "text-anchor":"middle", "font-size":14});
+  // start cells (colored) + safe star cells
+  RING.forEach((cell, i)=>{
+    const [r,c] = cell;
+    const startColor = Object.entries(STARTS).find(([col,idx])=>idx===i)?.[0];
+    if(startColor){
+      svg.appendChild(el("rect", {x:c*CELL,y:r*CELL,width:CELL,height:CELL, fill:COLOR_HEX[startColor]}));
+    } else if(SAFE_INDICES.has(i)){
+      const p = px(r,c);
+      const t = el("text", {x:p.x, y:p.y+5, "text-anchor":"middle", "font-size":16, fill:"#555"});
       t.textContent = "★";
       svg.appendChild(t);
     }
   });
 
-  svg.appendChild(el("circle", {cx:250, cy:250, r:38, fill:"#2a2f42"}));
-  const label = el("text", {x:250, y:257, "text-anchor":"middle", "font-size":22});
-  label.textContent = "🏁";
-  svg.appendChild(label);
+  // center home triangle (4-color pinwheel)
+  const cx=225, cy=225, s=45;
+  const tri = [
+    {pts:`${cx-s},${cy-s} ${cx+s},${cy-s} ${cx},${cy}`, color:COLOR_HEX.green},
+    {pts:`${cx+s},${cy-s} ${cx+s},${cy+s} ${cx},${cy}`, color:COLOR_HEX.yellow},
+    {pts:`${cx+s},${cy+s} ${cx-s},${cy+s} ${cx},${cy}`, color:COLOR_HEX.blue},
+    {pts:`${cx-s},${cy+s} ${cx-s},${cy-s} ${cx},${cy}`, color:COLOR_HEX.red},
+  ];
+  tri.forEach(t=> svg.appendChild(el("polygon", {points:t.pts, fill:t.color})));
 
+  // tokens (pin-style: circle with darker ring)
   game.players.forEach(pl=>{
     const slots = YARD_SLOTS[pl.color];
     pl.tokens.forEach((prog, ti)=>{
-      const p = prog === 0 ? slots[ti] : pointFor(pl.color, prog);
-      if(!p) return;
-      const g = el("circle", {cx:p.x, cy:p.y, r: prog===0?13:12,
-        fill:COLOR_HEX[pl.color], stroke:"#12141c", "stroke-width":2.5});
+      let p;
+      if(prog === 0){
+        const [r,c] = slots[ti];
+        p = px(r,c);
+      } else {
+        const cell = cellFor(pl.color, prog);
+        if(!cell) return;
+        p = px(cell[0], cell[1]);
+      }
+      const g = el("g", {});
+      const outer = el("circle", {cx:p.x, cy:p.y, r:11, fill:"#12141c"});
+      const inner = el("circle", {cx:p.x, cy:p.y, r:9, fill:COLOR_HEX[pl.color]});
+      const shine = el("circle", {cx:p.x-3, cy:p.y-3, r:3, fill:"#ffffff88"});
+      g.appendChild(outer); g.appendChild(inner); g.appendChild(shine);
       g.dataset.player = game.players.indexOf(pl);
       g.dataset.token = ti;
       g.style.cursor = "pointer";
@@ -690,8 +653,9 @@ function handleRoll(roll){
 
 function onTokenClick(e){
   if(!game.awaitingTokenChoice) return;
-  const pIdx = parseInt(e.target.dataset.player);
-  const tIdx = parseInt(e.target.dataset.token);
+  const g = e.currentTarget || e.target.closest("g");
+  const pIdx = parseInt(g.dataset.player);
+  const tIdx = parseInt(g.dataset.token);
   if(pIdx !== game.current) return;
   if(!game.awaitingTokenChoice.options.includes(tIdx)) return;
   const roll = game.awaitingTokenChoice.roll;
